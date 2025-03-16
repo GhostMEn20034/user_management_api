@@ -11,3 +11,7 @@ class UserCreateRequestValidator(Schema):
         required=True,
         description="User's email"
     )
+
+
+class UserUpdateRequestValidator(UserCreateRequestValidator):
+    pass

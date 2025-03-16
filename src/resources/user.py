@@ -3,18 +3,24 @@ from flask_restx import Namespace, Resource
 from marshmallow import ValidationError
 
 from src.dependencies.user_service import get_user_service
-from src.schemes.response_parsers.error import error_model
+from src.exceptions.user import UserNotFoundError
+# Request Parsers
 from src.schemes.request_parsers.pagination import pagination_parser
-from src.schemes.request_parsers.user import user_create_parser
-from src.schemes.dtos.user import CreateUserRequestBody
+from src.schemes.request_parsers.user import user_create_parser, user_update_parser
+# Response Parsers
+from src.schemes.response_parsers.error import error_model
 from src.schemes.response_parsers.user import user_model, user_list_response_model
-from src.schemes.request_validators.user import UserCreateRequestValidator
+# DTOs
+from src.schemes.dtos.user import CreateUserRequestBody, UpdateUserRequestBody
 from src.schemes.dtos.pagination import PaginationParams
+# Request Validators
+from src.schemes.request_validators.user import UserCreateRequestValidator, UserUpdateRequestValidator
+
 
 user_ns = Namespace('users')
 
 
-@user_ns.route("/")
+@user_ns.route("/users/")
 class UserResource(Resource):
 
     @user_ns.expect(pagination_parser)
@@ -73,14 +79,72 @@ class UserResource(Resource):
             }}, 400
 
 
-
-@user_ns.route("/<int:user_id>")
+@user_ns.route("/users/<int:user_id>")
 class UserDetailsResource(Resource):
     @user_ns.response(200, "Success", user_model)
     @user_ns.response(404, "User not found")
-    def get(self, user_id):
+    def get(self, user_id: int):
         """
         Retrieve details of a specific user
         """
         user_service = get_user_service(current_app.session)
 
+        try:
+            user = user_service.get_user_details(user_id)
+            return {
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "created_at": user.created_at.isoformat(),
+            }, 200
+        except UserNotFoundError:
+            return {"message": "User not found"}, 404
+
+    @user_ns.expect(user_update_parser)
+    @user_ns.response(200, "User Updated", user_model)
+    @user_ns.response(400, "Invalid user's input", model=error_model)
+    @user_ns.response(400, "An Email already taken")
+    @user_ns.response(404, "User not found")
+    def put(self, user_id: int):
+        """
+        Updates specific user
+        """
+        data = request.json
+        user_service = get_user_service(current_app.session)
+
+        user_update_schema = UserUpdateRequestValidator()
+
+        try:
+            user_update_schema.load(data)
+        except ValidationError as err:
+            return {"message": err.messages}, 400
+
+        update_user_request_body = UpdateUserRequestBody(
+            name=data["name"], email=data["email"]
+        )
+
+        try:
+            user = user_service.update_user(user_id, update_user_request_body)
+            return {
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "created_at": user.created_at.isoformat(),
+            }, 200
+        except UserNotFoundError:
+            return {"message": "User not found"}, 404
+        except ValueError:
+            return {"message": "User with this email already exists"}, 400
+
+    @user_ns.response(204, "User Deleted")
+    @user_ns.response(404, "User not found")
+    def delete(self, user_id: int):
+        """
+        Delete specific user
+        """
+        user_service = get_user_service(current_app.session)
+        try:
+            user_service.delete_user(user_id)
+            return {}, 204
+        except UserNotFoundError:
+            return {"message": "User not found"}, 404

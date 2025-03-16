@@ -1,14 +1,16 @@
 from typing import Tuple, Sequence
-
 from sqlalchemy.exc import IntegrityError
 
 from .abstract import AbstractUserService
+from src.exceptions.user import UserNotFoundError
+# Repositories
 from src.repositories.unit_of_work.abstract import AbstractUnitOfWork
 from src.repositories.user.abstract import AbstractUserRepository
+# DTOS
+from src.schemes.dtos.pagination import PaginationParams, PaginationResponse
+from src.schemes.dtos.user import CreateUserRequestBody, UpdateUserRequestBody
+
 from src.models.user import User
-from ...schemes.dtos.pagination import PaginationParams, PaginationResponse
-from ...schemes.dtos.user import CreateUserRequestBody
-from ...schemes.request_validators.user import UserCreateRequestValidator
 
 
 class UserServiceImplementation(AbstractUserService):
@@ -29,6 +31,13 @@ class UserServiceImplementation(AbstractUserService):
 
         return items, pagination_response
 
+    def get_user_details(self, user_id: int) -> User:
+        user = self._user_repository.get_by_id(user_id)
+        if not user:
+            raise UserNotFoundError(user_id)
+
+        return user
+
     def create_user(self, payload: CreateUserRequestBody) -> User:
         with self._uow:
             user_to_create = User(
@@ -44,4 +53,29 @@ class UserServiceImplementation(AbstractUserService):
 
             return created_user
 
+    def update_user(self, user_id: int, payload: UpdateUserRequestBody) -> User:
+        with self._uow:
+            user_to_update = self._user_repository.get_by_id(user_id)
+            if not user_to_update:
+                raise UserNotFoundError(user_id)
 
+            try:
+                user_to_update.email = payload.email
+                user_to_update.name = payload.name
+
+                self._user_repository.update(user_to_update)
+                self._uow.commit()
+            except IntegrityError:
+                self._uow.rollback()
+                raise ValueError("A user with this name already exists.")
+
+            return user_to_update
+
+    def delete_user(self, user_id: int):
+        with self._uow:
+            user_to_delete = self._user_repository.get_by_id(user_id)
+            if not user_to_delete:
+                raise UserNotFoundError(user_id)
+
+            self._user_repository.delete(user_to_delete)
+            self._uow.commit()

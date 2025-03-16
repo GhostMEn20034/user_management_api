@@ -17,3 +17,21 @@ user_create_parser.add_argument(
     help="User's email",
     location="json"
 )
+
+
+user_update_parser = reqparse.RequestParser()
+user_update_parser.add_argument(
+    "name",
+    type=str,
+    required=True,
+    help="User's name (max length: 255)",
+    location="json"
+)
+user_update_parser.add_argument(
+    "email",
+    type=inputs.email(check=True),
+    required=True,
+    help="User's email",
+    location="json"
+)
+
