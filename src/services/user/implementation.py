@@ -49,7 +49,7 @@ class UserServiceImplementation(AbstractUserService):
                 self._uow.commit()
             except IntegrityError:
                 self._uow.rollback()
-                raise ValueError("A user with this name already exists.")
+                raise ValueError("A user with this email already exists.")
 
             return created_user
 
@@ -67,7 +67,7 @@ class UserServiceImplementation(AbstractUserService):
                 self._uow.commit()
             except IntegrityError:
                 self._uow.rollback()
-                raise ValueError("A user with this name already exists.")
+                raise ValueError("A user with this email already exists.")
 
             return user_to_update
 

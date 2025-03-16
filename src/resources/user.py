@@ -15,6 +15,7 @@ from src.schemes.dtos.user import CreateUserRequestBody, UpdateUserRequestBody
 from src.schemes.dtos.pagination import PaginationParams
 # Request Validators
 from src.schemes.request_validators.user import UserCreateRequestValidator, UserUpdateRequestValidator
+from src.schemes.request_validators.pagination import PaginationParamsValidator
 
 
 user_ns = Namespace('users')
@@ -24,13 +25,22 @@ user_ns = Namespace('users')
 class UserResource(Resource):
 
     @user_ns.expect(pagination_parser)
-    @user_ns.marshal_list_with(user_list_response_model)
+    @user_ns.response(200, "User List returned", user_list_response_model)
+    @user_ns.response(400, "Invalid query params")
     def get(self):
         """Retrieve a paginated list of users"""
         params = request.args
-        page = int(params.get("page", 1))  # Default page is 1
-        page_size = int(params.get("page_size", 15))  # Default page size is 15
-        pagination_params = PaginationParams(page, page_size)
+        page = params.get("page", 1)
+        page_size = params.get("page_size", 15)  # Default page size is 15
+
+        pagination_params_validator = PaginationParamsValidator()
+
+        try:
+            pagination_params_validator.load({"page": page, "page_size": page_size})
+        except ValidationError as err:
+            return {"message": err.messages}, 400
+
+        pagination_params = PaginationParams(int(page), int(page_size))
 
         user_service = get_user_service(current_app.session)
 
