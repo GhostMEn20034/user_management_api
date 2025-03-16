@@ -150,7 +150,7 @@ class UserDetailsResource(Resource):
     @user_ns.response(404, "User not found")
     def delete(self, user_id: int):
         """
-        Delete specific user
+        Deletes specific user
         """
         user_service = get_user_service(current_app.session)
         try:
