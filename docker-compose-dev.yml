@@ -1,0 +1,30 @@
+services:
+  web:
+    env_file:
+      - .env
+    container_name: flask_user_management
+    build:
+      context: .
+      dockerfile: DockerfileLocal
+    command: flask run --host 0.0.0.0 --port 5000
+    volumes:
+      - .:/app
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16.4-alpine
+    container_name: postgres_user_management
+    volumes:
+      - postgres_user_management_volume:/var/lib/postgresql/data/
+      - ./init-database.sh:/docker-entrypoint-initdb.d/init-database.sh
+    environment:
+      - POSTGRES_PASSWORD=${SUPER_USER_PWD}
+      - SQL_DATABASE=${SQL_DATABASE}
+      - SQL_USER=${SQL_USER}
+      - SQL_PASSWORD=${SQL_PASSWORD}
+
+volumes:
+  postgres_user_management_volume:
